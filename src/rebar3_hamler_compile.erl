@@ -2,8 +2,8 @@
 
 -export([init/1, do/1, format_error/1]).
 
--define(PROVIDER, rebar3_hamler).
--define(DEPS, [app_discovery]).
+-define(PROVIDER, compile).
+-define(DEPS, []).
 
 -define(LOG(LEVEL, FORMAT, ARGS),
         rebar_api:LEVEL("[hamler] " ++ FORMAT, ARGS)).
@@ -13,7 +13,9 @@
 %% ===================================================================
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
+    ?LOG(info, "init hamler compiler", []),
     Provider = providers:create([
+            {namespace, hamler},
             {name, ?PROVIDER},            % The 'user friendly' name of the task
             {module, ?MODULE},            % The module implementation of the task
             {bare, true},                 % The task can be run by the user, always true
@@ -21,23 +23,29 @@ init(State) ->
             {example, "rebar3 hamler compile"},   % How to use the plugin
             {opts, []},                   % list of options understood by the plugin
             {short_desc, "Find and compile hamler code"},
-            {desc, "A rebar plugin that enables Erlang projects working along with "
-                   "[Hamler](https://github.com/hamler-lang/hamler) code."}
+            {desc, "Find and compile [Hamler](https://github.com/hamler-lang/hamler) code."}
     ]),
     {ok, rebar_state:add_provider(State, Provider)}.
 
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
+    ?LOG(info, "validating hamler tools are installed", []),
     case validate_hamler_tools() of
         ok ->
+            ?LOG(info, "ok, hamler tools ready", []),
             %% find all dirs that have an src sub-dir and contains .hm files in it
             Paths = lists:usort(
                 [filename:dirname(filename:dirname(Dir))
                  || Dir <- filelib:wildcard("./**/src/*.hm")]),
-            [compile(P) || P <- Paths],
+            ?LOG(debug, "got hamler paths to be compiled: ~p", [Paths]),
+            [begin
+                compile(P),
+                create_app(P)
+             end || P <- Paths],
             {ok, State};
         {error, Reason} ->
+            ?LOG(error, "validate hamler tools failed: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -48,7 +56,8 @@ format_error(Reason) ->
 %% validate the hamler and its tool-chain are ready on this system
 validate_hamler_tools() ->
     case os:getenv("PATH") of
-       false -> ?LOG(error, "Cannot get OS environment variable: $PATH", []);
+       false ->
+           {error, {os_env_not_found, "$PATH"}};
        PathV ->
           try
               [case filelib:find_file("hamler", Path) of
@@ -71,6 +80,10 @@ compile(Path) ->
         ?LOG(error, "~p~n", [Result]),
         ?LOG(error, "~p build failed with exit code: ~p", [Path, Code])
    end.
+
+create_app(Path) ->
+    %% TODO
+    ?LOG(info, "creating *.app in ebin of ~p", [Path]).
 
 exec_cmd(Path, Command) ->
     Port = open_port({spawn, Command}, [{cd, Path}, stream, in, eof, hide, exit_status]),
