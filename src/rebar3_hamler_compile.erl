@@ -11,7 +11,7 @@
 %% ===================================================================
 %% Public API
 %% ===================================================================
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
+-spec init(rebar_state:t()) -> rebar_state:t().
 init(State) ->
     ?LOG(info, "init hamler compiler", []),
     Provider = providers:create([
@@ -25,17 +25,14 @@ init(State) ->
             {short_desc, "Find and compile hamler code"},
             {desc, "Find and compile [Hamler](https://github.com/hamler-lang/hamler) code."}
     ]),
-    [create_app(P) || P <- find_hamler_paths()],
-    {ok, rebar_state:add_provider(State, Provider)}.
-
+    rebar_state:add_provider(State, Provider).
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
     ?LOG(info, "validating hamler tools are installed", []),
     case validate_hamler_tools() of
         ok ->
-            ?LOG(info, "ok, hamler tools ready", []),
-            [compile(P) || P <- find_hamler_paths()],
+            [compile(P) || P <- rebar3_hamler:find_hamler_paths()],
             {ok, State};
         {error, Reason} ->
             ?LOG(error, "validate hamler tools failed: ~p", [Reason]),
@@ -45,12 +42,6 @@ do(State) ->
 -spec format_error(any()) ->  iolist().
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
-
-find_hamler_paths() ->
-    %% find all dirs that have an src sub-dir and contains .hm files in it
-    lists:usort(
-        [filename:dirname(filename:dirname(Dir))
-            || Dir <- filelib:wildcard("./**/src/*.hm")]).
 
 %% validate the hamler and its tool-chain are ready on this system
 validate_hamler_tools() ->
@@ -79,32 +70,6 @@ compile(Path) ->
         ?LOG(error, "~p~n", [Result]),
         ?LOG(error, "~p build failed with exit code: ~p", [Path, Code])
    end.
-
-create_app(Path) ->
-    Appname = filename:basename(Path),
-    AppSrcFile = filename:join([Path, Appname++".app.src"]),
-    case filelib:is_file(AppSrcFile) of
-        true -> ok;
-        false ->
-            ?LOG(info, "creating *.app in ebin of ~p", [Path]),
-            file:write_file(AppSrcFile, dummy_app_src(Appname))
-    end.
-
-dummy_app_src(Appname) ->
-    io_lib:format("{application, ~s,
-    [{description, \"~s\"},
-     {vsn, \"git\"},
-     {registered, []},
-     {applications,
-     [kernel,
-     stdlib,
-     sasl
-     ]},
-     {env,[]},
-     {modules, []},
-     {licenses, [\"Apache 2.0\"]},
-     {links, []}
-    ]}.", [Appname, Appname]).
 
 exec_cmd(Path, Command) ->
     Port = open_port({spawn, Command}, [{cd, Path}, stream, in, eof, hide, exit_status]),
