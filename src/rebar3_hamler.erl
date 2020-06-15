@@ -2,8 +2,7 @@
 
 -export([init/1, find_hamler_paths/1]).
 
--define(LOG(LEVEL, FORMAT, ARGS),
-        rebar_api:LEVEL("[hamler] " ++ FORMAT, ARGS)).
+-include("include/rebar3_hamler.hrl").
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->

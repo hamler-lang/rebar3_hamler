@@ -1,13 +1,12 @@
 -module(rebar3_hamler_git_resource).
 
+-include("include/rebar3_hamler.hrl").
+
 -export([init/2,
          lock/2,
          download/4, download/3,
          needs_update/2,
          make_vsn/2]).
-
--define(LOG(LEVEL, FORMAT, ARGS),
-        rebar_api:LEVEL("[hamler] " ++ FORMAT, ARGS)).
 
 init(Type, _RebarState) ->
    Resource = rebar_resource_v2:new(

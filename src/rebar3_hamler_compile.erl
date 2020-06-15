@@ -2,11 +2,10 @@
 
 -export([init/1, do/1, format_error/1]).
 
+-include("include/rebar3_hamler.hrl").
+
 -define(PROVIDER, compile).
 -define(DEPS, []).
-
--define(LOG(LEVEL, FORMAT, ARGS),
-        rebar_api:LEVEL("[hamler] " ++ FORMAT, ARGS)).
 
 %% ===================================================================
 %% Public API
