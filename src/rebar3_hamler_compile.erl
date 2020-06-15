@@ -28,7 +28,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    ?LOG(info, "validating hamler tools are installed", []),
+    ?LOG(info, "validating hamler toolchains", []),
     case validate_hamler_tools() of
         ok ->
             [ok = compile(P) || P <- rebar3_hamler:find_hamler_paths(State)],
@@ -80,14 +80,16 @@ find_hamler_ebins() ->
 fetch_hamler_lang(State) ->
     HamlerTarget = filename:join([rebar_dir:deps_dir(State), "hamler"]),
     InstallDir = os:getenv("HAMLER_INSTALL_DIR", ?HAMLER_INSTALL_DIR),
-    ?LOG(info, "fetching hamler beams from installing dir: ~s, to target dir: ~s", [InstallDir, HamlerTarget]),
+    ?LOG(debug, "fetching hamler beams from installing dir: ~s, to target dir: ~s", [InstallDir, HamlerTarget]),
     ok = filelib:ensure_dir(filename:join([HamlerTarget, "ebin", "a"])),
     ok = filelib:ensure_dir(filename:join([HamlerTarget, "src", "a"])),
     [{ok, _} = file:copy(File, filename:join([HamlerTarget, "ebin", filename:basename(File)]))
      || File <- find_beam_files(InstallDir)],
+    Version = hamler_version(),
+    ?LOG(info, "hamler version: ~p~n", [Version]),
     ok = rebar3_hamler_git_resource:create_app_src(HamlerTarget,
             #{name => "hamler", description => "Hamler Language",
-              vsn => hamler_version(), applications => [kernel,stdlib,sasl]}),
+              vsn => Version, applications => [kernel,stdlib,sasl]}),
     create_app(HamlerTarget).
 
 compile(Path) ->
@@ -105,7 +107,6 @@ compile(Path) ->
 hamler_version() ->
     case exec_cmd(".", "hamler --version") of
         {0, Version} ->
-            ?LOG(info, "hamler version: ~p~n", [Version]),
             string:trim(Version);
         {Code, Result} ->
             ?LOG(error, "get hamler version failed: ~p~n", [{Code, Result}]),
@@ -134,7 +135,7 @@ collect_cmd_exit_code(Port) ->
     end.
 
 create_app(Path) ->
-    ?LOG(info, "making *.app for ~p", [Path]),
+    ?LOG(debug, "making *.app for ~p", [Path]),
     Appname = filename:basename(Path),
     AppSrcFile = filename:join([Path, "src", Appname++".app.src"]),
     case filelib:is_file(AppSrcFile) of

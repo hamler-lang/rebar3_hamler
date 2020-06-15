@@ -47,7 +47,7 @@ create_app_src(Path, #{name := Name} = AppSrcDscr) ->
     case filelib:is_file(AppSrcFile) of
         true -> ok;
         false ->
-            ?LOG(info, "creating *.app.src for ~p", [Path]),
+            ?LOG(debug, "creating *.app.src for ~p", [Path]),
             file:write_file(AppSrcFile, dummy_app_src(AppSrcDscr))
     end.
 
