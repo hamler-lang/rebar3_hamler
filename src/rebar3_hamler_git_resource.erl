@@ -29,7 +29,7 @@ download(TmpDir, AppInfo, CustomState, RebarState) ->
 %% For backward compatibilty
 download(Dir, AppInfo, State) ->
   Result = rebar_git_resource:download(Dir, strip_source_tag(AppInfo), State),
-  ok = create_app_src(Dir, #{name => rebar_app_info:name(AppInfo),}),
+  ok = create_app_src(Dir, #{name => rebar_app_info:name(AppInfo)}),
   Result.
 
 make_vsn(Dir, ResourceState) ->
