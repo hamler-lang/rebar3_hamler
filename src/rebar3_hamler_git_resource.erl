@@ -19,24 +19,24 @@ init(Type, _RebarState) ->
    {ok, Resource}.
 
 lock(AppInfo, CustomState) ->
-  rebar_git_resource:lock(strip_source_tag(AppInfo), CustomState).
+    tag_hamler(rebar_git_resource:lock(strip_source_tag(AppInfo), CustomState)).
 
 download(TmpDir, AppInfo, CustomState, RebarState) ->
-  Result = rebar_git_resource:download(TmpDir, strip_source_tag(AppInfo), CustomState, RebarState),
-  ok = create_app_src(TmpDir, #{name => rebar_app_info:name(AppInfo)}),
-  Result.
+    Result = rebar_git_resource:download(TmpDir, strip_source_tag(AppInfo), CustomState, RebarState),
+    ok = create_app_src(TmpDir, #{name => rebar_app_info:name(AppInfo)}),
+    Result.
 
 %% For backward compatibilty
 download(Dir, AppInfo, State) ->
-  Result = rebar_git_resource:download(Dir, strip_source_tag(AppInfo), State),
-  ok = create_app_src(Dir, #{name => rebar_app_info:name(AppInfo)}),
-  Result.
+    Result = rebar_git_resource:download(Dir, strip_source_tag(AppInfo), State),
+    ok = create_app_src(Dir, #{name => rebar_app_info:name(AppInfo)}),
+    Result.
 
 make_vsn(Dir, ResourceState) ->
-  rebar_git_resource:make_vsn(Dir, ResourceState).
+    rebar_git_resource:make_vsn(Dir, ResourceState).
 
 needs_update(AppInfo, ResourceState) ->
-  rebar_git_resource:needs_update(strip_source_tag(AppInfo), ResourceState).
+    rebar_git_resource:needs_update(strip_source_tag(AppInfo), ResourceState).
 
 %%====================================================================
 %% Internal functions
@@ -70,6 +70,11 @@ dummy_app_src(AppSrcDscr = #{name := Name}) ->
 
 strip_source_tag(AppInfo) ->
     rebar_app_info:source(AppInfo, strip_hamler(rebar_app_info:source(AppInfo))).
+
+tag_hamler({git, Url}) ->
+    {{hamler,git}, Url};
+tag_hamler({git, Url, Branch}) ->
+    {{hamler,git}, Url, Branch}.
 
 strip_hamler({{hamler,git}, Url}) ->
     {git, Url};
