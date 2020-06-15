@@ -32,7 +32,7 @@ do(State) ->
     ?LOG(info, "validating hamler tools are installed", []),
     case validate_hamler_tools() of
         ok ->
-            [compile(P) || P <- rebar3_hamler:find_hamler_paths()],
+            [ok = compile(P) || P <- rebar3_hamler:find_hamler_paths(State)],
             {ok, State};
         {error, Reason} ->
             ?LOG(error, "validate hamler tools failed: ~p", [Reason]),
@@ -61,11 +61,13 @@ validate_hamler_tools() ->
     end.
 
 compile(Path) ->
-   ?LOG(info, "compiling ~p", [Path]),
+   ?LOG(info, "compiling ~s", [Path]),
    case exec_cmd(Path, "hamler build 2>&1") of
      {0, Result} ->
         ?LOG(debug, "~p~n", [Result]),
-        ?LOG(debug, "~p built successfully", [Path]);
+        ?LOG(debug, "~p built successfully", [Path]),
+        ?LOG(debug, "making *.app for ~p", [Path]),
+        make_app(Path);
      {Code, Result} ->
         ?LOG(error, "~p~n", [Result]),
         ?LOG(error, "~p build failed with exit code: ~p", [Path, Code])
@@ -92,3 +94,21 @@ collect_cmd_exit_code(Port) ->
         {Port, {exit_status, Code}} -> Code
     end.
 
+make_app(Path) ->
+    Appname = filename:basename(Path),
+    AppSrcFile = filename:join([Path, "src", Appname++".app.src"]),
+    case filelib:is_file(AppSrcFile) of
+        true ->
+            {ok, [{application,AName,AppParams}]} = file:consult(AppSrcFile),
+            Mods = proplists:get_value(modules, AppParams) ++ find_beams(Path),
+            AppContent = io_lib:format("~tp.~n", [
+                {application, AName,
+                lists:keyreplace(modules, 1, AppParams, {modules, Mods})}]),
+            file:write_file(filename:join([Path, "ebin", Appname++".app"]), AppContent);
+        false ->
+            ?LOG(error, "cannot found file: ~p~n", [AppSrcFile]),
+            erlang:error({enoent, AppSrcFile})
+    end.
+
+find_beams(Path) ->
+    [list_to_atom(filename:rootname(filename:basename(File))) || File <- filelib:wildcard(filename:join([Path, "ebin", "*.beam"]))].
