@@ -8,6 +8,8 @@
          needs_update/2,
          make_vsn/2]).
 
+-export([create_app_src/2]).
+
 init(Type, _RebarState) ->
    Resource = rebar_resource_v2:new(
        Type,    % type tag such as 'git' or 'hg'
@@ -21,13 +23,13 @@ lock(AppInfo, CustomState) ->
 
 download(TmpDir, AppInfo, CustomState, RebarState) ->
   Result = rebar_git_resource:download(TmpDir, strip_source_tag(AppInfo), CustomState, RebarState),
-  create_app(TmpDir, rebar_app_info:name(AppInfo)),
+  ok = create_app_src(TmpDir, #{name => rebar_app_info:name(AppInfo)}),
   Result.
 
 %% For backward compatibilty
 download(Dir, AppInfo, State) ->
   Result = rebar_git_resource:download(Dir, strip_source_tag(AppInfo), State),
-  create_app(Dir, rebar_app_info:name(AppInfo)),
+  ok = create_app_src(Dir, #{name => rebar_app_info:name(AppInfo),}),
   Result.
 
 make_vsn(Dir, ResourceState) ->
@@ -39,31 +41,32 @@ needs_update(AppInfo, ResourceState) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
-create_app(Path, Name) ->
+create_app_src(Path, #{name := Name} = AppSrcDscr) ->
     Appname = str(Name),
     AppSrcFile = filename:join([Path, "src", Appname++".app.src"]),
     case filelib:is_file(AppSrcFile) of
-        true -> {ok, AppSrcFile};
+        true -> ok;
         false ->
             ?LOG(info, "creating *.app.src for ~p", [Path]),
-            file:write_file(AppSrcFile, dummy_app_src(Appname))
+            file:write_file(AppSrcFile, dummy_app_src(AppSrcDscr))
     end.
 
-dummy_app_src(Appname) ->
+dummy_app_src(AppSrcDscr = #{name := Name}) ->
     io_lib:format("{application, ~s,
     [{description, \"~s\"},
-     {vsn, \"git\"},
+     {vsn, \"~s\"},
      {registered, []},
-     {applications,
-     [kernel,
-     stdlib,
-     sasl
-     ]},
+     {applications, ~p},
      {env,[]},
      {modules, []},
      {licenses, [\"Apache 2.0\"]},
      {links, []}
-    ]}.", [Appname, Appname]).
+    ]}.",
+    [ Name,
+      maps:get(description, AppSrcDscr, ""),
+      maps:get(vsn, AppSrcDscr, "git"),
+      maps:get(applications, AppSrcDscr, [kernel,stdlib,sasl,hamler])
+    ]).
 
 strip_source_tag(AppInfo) ->
     rebar_app_info:source(AppInfo, strip_hamler(rebar_app_info:source(AppInfo))).

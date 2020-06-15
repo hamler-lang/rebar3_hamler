@@ -32,6 +32,7 @@ do(State) ->
     case validate_hamler_tools() of
         ok ->
             [ok = compile(P) || P <- rebar3_hamler:find_hamler_paths(State)],
+            fetch_hamler_lang(State),
             {ok, State};
         {error, Reason} ->
             ?LOG(error, "validate hamler tools failed: ~p", [Reason]),
@@ -45,32 +46,71 @@ format_error(Reason) ->
 %% validate the hamler and its tool-chain are ready on this system
 validate_hamler_tools() ->
     case os:getenv("PATH") of
-       false ->
-           {error, {os_env_not_found, "$PATH"}};
-       PathV ->
-          try
-              [case filelib:find_file("hamler", Path) of
-                   {ok, _} -> throw(ok);
-                   _ -> not_found
-               end || Path <- string:tokens(PathV, ": ")],
-               {error, hamler_not_found_in_path}
-          catch
-              throw:ok -> ok
-          end
+        false ->
+            {error, {os_env_not_found, "$PATH"}};
+        PathV ->
+            case find_hamler_bin(PathV) of
+                ok ->
+                    case find_hamler_ebins() of
+                        ok -> ok;
+                        Error -> Error
+                    end;
+                Error -> Error
+            end
     end.
 
+find_hamler_bin(Paths) ->
+    try
+        [case filelib:find_file("hamler", Path) of
+            {ok, _BinFile} -> throw(ok);
+            _ -> not_found
+        end || Path <- string:tokens(Paths, ": ")],
+        {error, hamler_not_found_in_path}
+    catch
+        throw:ok -> ok
+    end.
+
+find_hamler_ebins() ->
+    InstallPath = os:getenv("HAMLER_INSTALL_DIR", ?HAMLER_INSTALL_DIR),
+    case length(find_beam_files(InstallPath)) > 0 of
+        true -> ok;
+        false -> {error, hamler_ebins_not_found}
+    end.
+
+fetch_hamler_lang(State) ->
+    HamlerTarget = filename:join([rebar_dir:deps_dir(State), "hamler"]),
+    InstallDir = os:getenv("HAMLER_INSTALL_DIR", ?HAMLER_INSTALL_DIR),
+    ?LOG(info, "fetching hamler beams from installing dir: ~s, to target dir: ~s", [InstallDir, HamlerTarget]),
+    ok = filelib:ensure_dir(filename:join([HamlerTarget, "ebin", "a"])),
+    ok = filelib:ensure_dir(filename:join([HamlerTarget, "src", "a"])),
+    [{ok, _} = file:copy(File, filename:join([HamlerTarget, "ebin", filename:basename(File)]))
+     || File <- find_beam_files(InstallDir)],
+    ok = rebar3_hamler_git_resource:create_app_src(HamlerTarget,
+            #{name => "hamler", description => "Hamler Language",
+              vsn => hamler_version(), applications => [kernel,stdlib,sasl]}),
+    create_app(HamlerTarget).
+
 compile(Path) ->
-   ?LOG(info, "compiling ~s", [Path]),
-   case exec_cmd(Path, "hamler build 2>&1") of
-     {0, Result} ->
-        ?LOG(debug, "~p~n", [Result]),
-        ?LOG(debug, "~p built successfully", [Path]),
-        ?LOG(debug, "making *.app for ~p", [Path]),
-        make_app(Path);
-     {Code, Result} ->
-        ?LOG(error, "~p~n", [Result]),
-        ?LOG(error, "~p build failed with exit code: ~p", [Path, Code])
-   end.
+    ?LOG(info, "compiling ~s", [Path]),
+    case exec_cmd(Path, "hamler build 2>&1") of
+        {0, Result} ->
+            ?LOG(debug, "~p~n", [Result]),
+            ?LOG(debug, "~p built successfully", [Path]),
+            create_app(Path);
+        {Code, Result} ->
+            ?LOG(error, "~p~n", [Result]),
+            ?LOG(error, "~p build failed with exit code: ~p", [Path, Code])
+    end.
+
+hamler_version() ->
+    case exec_cmd(".", "hamler --version") of
+        {0, Version} ->
+            ?LOG(info, "hamler version: ~p~n", [Version]),
+            string:trim(Version);
+        {Code, Result} ->
+            ?LOG(error, "get hamler version failed: ~p~n", [{Code, Result}]),
+            "unknown"
+    end.
 
 exec_cmd(Path, Command) ->
     Port = open_port({spawn, Command}, [{cd, Path}, stream, in, eof, hide, exit_status]),
@@ -93,13 +133,14 @@ collect_cmd_exit_code(Port) ->
         {Port, {exit_status, Code}} -> Code
     end.
 
-make_app(Path) ->
+create_app(Path) ->
+    ?LOG(info, "making *.app for ~p", [Path]),
     Appname = filename:basename(Path),
     AppSrcFile = filename:join([Path, "src", Appname++".app.src"]),
     case filelib:is_file(AppSrcFile) of
         true ->
             {ok, [{application,AName,AppParams}]} = file:consult(AppSrcFile),
-            Mods = proplists:get_value(modules, AppParams) ++ find_beams(Path),
+            Mods = proplists:get_value(modules, AppParams) ++ get_beams(find_beam_files(Path)),
             AppContent = io_lib:format("~tp.~n", [
                 {application, AName,
                 lists:keyreplace(modules, 1, AppParams, {modules, Mods})}]),
@@ -109,5 +150,8 @@ make_app(Path) ->
             erlang:error({enoent, AppSrcFile})
     end.
 
-find_beams(Path) ->
-    [list_to_atom(filename:rootname(filename:basename(File))) || File <- filelib:wildcard(filename:join([Path, "ebin", "*.beam"]))].
+find_beam_files(Path) ->
+    filelib:wildcard(filename:join([Path, "ebin", "*.beam"])).
+
+get_beams(BeamFiles) ->
+    [list_to_atom(filename:rootname(filename:basename(File))) || File <- BeamFiles].
