@@ -94,6 +94,7 @@ fetch_hamler_lang(State) ->
 
 compile(Path) ->
     ?LOG(info, "compiling ~s", [Path]),
+    _ = exec_cmd(Path, "mkdir -p ebin"), %% tmp fix ebin cannot found
     case exec_cmd(Path, "hamler build 2>&1") of
         {0, Result} ->
             ?LOG(debug, "~p~n", [Result]), %% show result in single line
