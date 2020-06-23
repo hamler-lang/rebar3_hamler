@@ -32,12 +32,12 @@ do(State) ->
     case validate_hamler_tools() of
         ok ->
             Paths = rebar3_hamler:find_hamler_paths(State),
-            ?LOG(info, "got paths of hamler projects: ~0p", [Paths]),
+            ?LOG(debug, "got paths of hamler projects: ~0p", [Paths]),
             [case Type of
                 build_path -> ok = compile(P);
                 _ -> ok = preproc_project(P)
              end || {Type, P} <- Paths],
-            fetch_hamler_lang(State),
+            true = fetch_hamler_lang(State),
             {ok, State};
         {error, Reason} ->
             ?LOG(error, "validate hamler tools failed: ~p", [Reason]),
@@ -95,7 +95,8 @@ fetch_hamler_lang(State) ->
     ok = rebar3_hamler_git_resource:create_app_src(HamlerTarget,
             #{name => "hamler", description => "Hamler Language",
               vsn => Version, applications => [kernel,stdlib,sasl]}),
-    create_app(HamlerTarget).
+    create_app(HamlerTarget),
+    code:add_path(filename:join([HamlerTarget, "ebin"])).
 
 preproc_project(Path) ->
     ?LOG(debug, "preprocessing project: ~s", [Path]),
