@@ -31,7 +31,9 @@ do(State) ->
     ?LOG(info, "validating hamler toolchains", []),
     case validate_hamler_tools() of
         ok ->
-            [ok = compile(P) || P <- rebar3_hamler:find_hamler_paths(State)],
+            Paths = rebar3_hamler:find_hamler_paths(State),
+            ?LOG(info, "got paths of hamler projects: ~0p", [Paths]),
+            [ok = compile(P) || P <- Paths],
             fetch_hamler_lang(State),
             {ok, State};
         {error, Reason} ->
@@ -86,7 +88,7 @@ fetch_hamler_lang(State) ->
     [{ok, _} = file:copy(File, filename:join([HamlerTarget, "ebin", filename:basename(File)]))
      || File <- find_beam_files(InstallDir)],
     Version = hamler_version(),
-    ?LOG(info, "hamler version: ~p~n", [Version]),
+    ?LOG(info, "settle hamler-~s into ~s~n", [Version, HamlerTarget]),
     ok = rebar3_hamler_git_resource:create_app_src(HamlerTarget,
             #{name => "hamler", description => "Hamler Language",
               vsn => Version, applications => [kernel,stdlib,sasl]}),

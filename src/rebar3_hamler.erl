@@ -17,7 +17,7 @@ find_hamler_paths(State) ->
                    lib_path(State)],
     ?LOG(debug, "find hamler path in ~p", [SearchPaths]),
     HmDirs = lists:append([filelib:wildcard(Dir) || Dir <- SearchPaths]),
-    lists:usort([extract_project_path(Dir) || Dir <- HmDirs]).
+    usort_project_paths([extract_project_path(Dir) || Dir <- HmDirs]).
 
 src_path(State) ->
     filename:join([rebar_dir:root_dir(State), "src", "**", "*.hm"]).
@@ -41,3 +41,8 @@ extract_project_path(Dir, "src") ->
 extract_project_path(Dir, _Basename) ->
     extract_project_path(filename:dirname(Dir)).
 
+usort_project_paths(Paths) ->
+    lists:usort(
+        fun(P1, P2) ->
+            filename:basename(P1) =< filename:basename(P2)
+        end, Paths).
