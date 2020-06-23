@@ -96,8 +96,8 @@ compile(Path) ->
     ?LOG(info, "compiling ~s", [Path]),
     case exec_cmd(Path, "hamler build 2>&1") of
         {0, Result} ->
-            ?LOG(debug, "~p~n", [Result]),
-            ?LOG(debug, "~p built successfully", [Path]),
+            ?LOG(debug, "~p~n", [Result]), %% show result in single line
+            ?LOG(debug, "~s built successfully", [Path]),
             create_app(Path);
         {Code, Result} ->
             ?LOG(error, "~s~n", [Result]),
@@ -135,21 +135,25 @@ collect_cmd_exit_code(Port) ->
     end.
 
 create_app(Path) ->
-    ?LOG(debug, "making *.app for ~p", [Path]),
+    ?LOG(debug, "making *.app for ~s", [Path]),
     Appname = filename:basename(Path),
     AppSrcFile = filename:join([Path, "src", Appname++".app.src"]),
     case filelib:is_file(AppSrcFile) of
         true ->
-            {ok, [{application,AName,AppParams}]} = file:consult(AppSrcFile),
-            Mods = proplists:get_value(modules, AppParams) ++ get_beams(find_beam_files(Path)),
-            AppContent = io_lib:format("~tp.~n", [
-                {application, AName,
-                lists:keyreplace(modules, 1, AppParams, {modules, Mods})}]),
-            file:write_file(filename:join([Path, "ebin", Appname++".app"]), AppContent);
+            do_create_app(Path, Appname, AppSrcFile);
         false ->
-            ?LOG(error, "cannot found file: ~p~n", [AppSrcFile]),
-            erlang:error({enoent, AppSrcFile})
+            ?LOG(warn, "cannot found file: ~s, creating a default one", [AppSrcFile]),
+            rebar3_hamler_git_resource:create_app_src(Path, #{name => Appname}),
+            do_create_app(Path, Appname, AppSrcFile)
     end.
+
+do_create_app(Path, Appname, AppSrcFile) ->
+    {ok, [{application,AName,AppParams}]} = file:consult(AppSrcFile),
+    Mods = proplists:get_value(modules, AppParams) ++ get_beams(find_beam_files(Path)),
+    AppContent = io_lib:format("~tp.~n", [
+        {application, AName,
+        lists:keyreplace(modules, 1, AppParams, {modules, Mods})}]),
+    file:write_file(filename:join([Path, "ebin", Appname++".app"]), AppContent).
 
 find_beam_files(Path) ->
     filelib:wildcard(filename:join([Path, "ebin", "*.beam"])).
