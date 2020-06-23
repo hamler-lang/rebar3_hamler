@@ -63,7 +63,7 @@ dummy_app_src(AppSrcDscr = #{name := Name}) ->
      {links, []}
     ]}.",
     [ Name,
-      maps:get(description, AppSrcDscr, ""),
+      maps:get(description, AppSrcDscr, Name),
       maps:get(vsn, AppSrcDscr, "git"),
       maps:get(applications, AppSrcDscr, [kernel,stdlib,sasl,hamler])
     ]).

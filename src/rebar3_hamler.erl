@@ -1,6 +1,6 @@
 -module(rebar3_hamler).
 
--export([init/1, find_hamler_paths/1]).
+-export([init/1, find_hamler_paths/1, project_path_type/2]).
 
 -include("include/rebar3_hamler.hrl").
 
@@ -17,13 +17,13 @@ find_hamler_paths(State) ->
                    lib_path(State)],
     ?LOG(debug, "find hamler path in ~p", [SearchPaths]),
     HmDirs = lists:append([filelib:wildcard(Dir) || Dir <- SearchPaths]),
-    usort_project_paths([extract_project_path(Dir) || Dir <- HmDirs]).
+    usort_project_paths([extract_project_path(Dir) || Dir <- HmDirs], absolute_deps_path(State)).
 
 src_path(State) ->
     filename:join([rebar_dir:root_dir(State), "src", "**", "*.hm"]).
 
 deps_path(State) ->
-    filename:join([rebar_dir:deps_dir(State), "*", "src", "**", "*.hm"]).
+    filename:join([absolute_deps_path(State), "*", "src", "**", "*.hm"]).
 
 apps_path(State) ->
     filename:join([rebar_dir:root_dir(State), "apps", "*", "src", "**", "*.hm"]).
@@ -41,8 +41,14 @@ extract_project_path(Dir, "src") ->
 extract_project_path(Dir, _Basename) ->
     extract_project_path(filename:dirname(Dir)).
 
-usort_project_paths(Paths) ->
-    lists:usort(
-        fun(P1, P2) ->
-            filename:basename(P1) =< filename:basename(P2)
-        end, Paths).
+absolute_deps_path(State) ->
+    filename:absname(rebar_dir:deps_dir(State)).
+
+usort_project_paths(Paths, DepsPath) ->
+    [{project_path_type(P, DepsPath), P} || P <- lists:usort(Paths)].
+
+project_path_type(Path, DepsPath) ->
+    case string:prefix(Path, DepsPath) of
+        nomatch -> lib_path;
+        _ -> build_path
+    end.

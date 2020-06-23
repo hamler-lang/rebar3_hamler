@@ -33,7 +33,10 @@ do(State) ->
         ok ->
             Paths = rebar3_hamler:find_hamler_paths(State),
             ?LOG(info, "got paths of hamler projects: ~0p", [Paths]),
-            [ok = compile(P) || P <- Paths],
+            [case Type of
+                build_path -> ok = compile(P);
+                _ -> ok = preproc_project(P)
+             end || {Type, P} <- Paths],
             fetch_hamler_lang(State),
             {ok, State};
         {error, Reason} ->
@@ -94,6 +97,17 @@ fetch_hamler_lang(State) ->
               vsn => Version, applications => [kernel,stdlib,sasl]}),
     create_app(HamlerTarget).
 
+preproc_project(Path) ->
+    ?LOG(debug, "preprocessing project: ~s", [Path]),
+    Appname = filename:basename(Path),
+    AppSrcFile = filename:join([Path, "src", Appname++".app.src"]),
+    case filelib:is_file(AppSrcFile) of
+        true -> ok;
+        false ->
+            ?LOG(warn, "cannot found file: ~s, creating a default one", [AppSrcFile]),
+            rebar3_hamler_git_resource:create_app_src(Path, #{name => Appname})
+    end.
+
 compile(Path) ->
     ?LOG(info, "compiling ~s", [Path]),
     _ = exec_cmd(Path, "mkdir -p ebin"), %% tmp fix ebin cannot found
@@ -145,17 +159,17 @@ create_app(Path) ->
         true ->
             do_create_app(Path, Appname, AppSrcFile);
         false ->
-            ?LOG(warn, "cannot found file: ~s, creating a default one", [AppSrcFile]),
-            rebar3_hamler_git_resource:create_app_src(Path, #{name => Appname}),
-            do_create_app(Path, Appname, AppSrcFile)
+            %?LOG(warn, "cannot found file: ~s, creating a default one", [AppSrcFile]),
+            ?LOG(error, "cannot found file: ~s", [AppSrcFile]),
+            error({enoent, AppSrcFile})
     end.
 
 do_create_app(Path, Appname, AppSrcFile) ->
     {ok, [{application,AName,AppParams}]} = file:consult(AppSrcFile),
     Mods = get_beams(find_beam_files(Path)),
+    Apps = [hamler],
     AppContent = io_lib:format("~tp.~n", [
-        {application, AName,
-        lists:keyreplace(modules, 1, AppParams, {modules, Mods})}]),
+        {application, AName, patch_appsrc_params(AppParams, Mods, Apps)}]),
     file:write_file(filename:join([Path, "ebin", Appname++".app"]), AppContent).
 
 find_beam_files(Path) ->
@@ -163,3 +177,8 @@ find_beam_files(Path) ->
 
 get_beams(BeamFiles) ->
     [list_to_atom(filename:rootname(filename:basename(File))) || File <- BeamFiles].
+
+patch_appsrc_params(AppParams, Mods, Apps) ->
+    lists:keyreplace(modules, 1, AppParams, {modules, Mods}),
+    OldApps = proplists:get_value(applications, AppParams),
+    lists:keyreplace(applications, 1, AppParams, {applications, lists:usort(OldApps ++ Apps)}).
