@@ -100,8 +100,8 @@ compile(Path) ->
             ?LOG(debug, "~p built successfully", [Path]),
             create_app(Path);
         {Code, Result} ->
-            ?LOG(error, "~p~n", [Result]),
-            ?LOG(error, "~p build failed with exit code: ~p", [Path, Code])
+            ?LOG(error, "~s~n", [Result]),
+            ?LOG(error, "~s command `hamler build` failed with exit code: ~p", [Path, Code])
     end.
 
 hamler_version() ->
