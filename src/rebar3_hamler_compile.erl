@@ -152,7 +152,7 @@ create_app(Path) ->
 
 do_create_app(Path, Appname, AppSrcFile) ->
     {ok, [{application,AName,AppParams}]} = file:consult(AppSrcFile),
-    Mods = proplists:get_value(modules, AppParams) ++ get_beams(find_beam_files(Path)),
+    Mods = get_beams(find_beam_files(Path)),
     AppContent = io_lib:format("~tp.~n", [
         {application, AName,
         lists:keyreplace(modules, 1, AppParams, {modules, Mods})}]),
