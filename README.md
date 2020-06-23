@@ -37,10 +37,10 @@ an `overrides` section, in case they dependents on this plugin too:
 And add the dependency written in Hamler that to be added to your Erlang project:
 
     {deps, [
-        {hjson, {{hamler,git}, "https://github.com/terry-xiaoyu/hjson", {branch, "master"}}}
+        {json, {{hamler,git}, "https://github.com/hamler-lang/json", {branch, "master"}}}
     ]}.
 
-Where `hjson` is a JSON parser written in Hamler, we use it for demo here.
+Where `https://github.com/hamler-lang/json` is a JSON parser written in Hamler, we use it for demo here.
 
 Note that the source type of the dependency must be `{hamler,git}`.
 
