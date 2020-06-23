@@ -23,6 +23,17 @@ Add the plugin to your rebar config:
         {pre, [{compile, {hamler, compile}}]}
     ]}.
 
+Optionally you could suppress all the `hamler provider_hooks` by provide
+an `overrides` section, in case they dependents on this plugin too:
+
+    {overrides, [
+        {del, [
+            {provider_hooks, [
+                {pre, [{compile, {hamler, compile}}]}
+            ]}
+        ]}
+    ]}.
+
 And add the dependency written in Hamler that to be added to your Erlang project:
 
     {deps, [
