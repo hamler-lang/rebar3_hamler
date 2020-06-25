@@ -61,3 +61,8 @@ The `rebar shell` is also supported:
 You could even start the Hamler's REPL by running:
 
     $ rebar3 hamler repl
+
+Example Project
+---------------
+
+You could checkout the example project [here](https://github.com/terry-xiaoyu/tjson).
