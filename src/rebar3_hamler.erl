@@ -10,7 +10,7 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-    Resource = {{hamler,git}, rebar3_hamler_git_resource},
+    Resource = {hamler_git, rebar3_hamler_git_resource},
     {ok, rebar3_hamler_repl:init(
             rebar3_hamler_compile:init(
                 rebar_state:add_resource(State, Resource)))}.

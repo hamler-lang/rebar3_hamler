@@ -6,7 +6,7 @@
 -include("include/rebar3_hamler.hrl").
 
 -define(PROVIDER, repl).
--define(DEPS, [{hamler, compile}]).
+-define(DEPS, [{default, deps}, {hamler, compile}]).
 
 %% ===================================================================
 %% Public API

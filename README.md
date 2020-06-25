@@ -37,12 +37,12 @@ an `overrides` section, in case they dependents on this plugin too:
 And add the dependency written in Hamler that to be added to your Erlang project:
 
     {deps, [
-        {json, {{hamler,git}, "https://github.com/hamler-lang/json", {branch, "master"}}}
+        {json, {hamler_git, "https://github.com/hamler-lang/json", {branch, "master"}}}
     ]}.
 
 Where `https://github.com/hamler-lang/json` is a JSON parser written in Hamler, we use it for demo here.
 
-Note that the source type of the dependency must be `{hamler,git}`.
+**Note that the source type of the dependency must be `hamler_git`**.
 
 Then just `rebar3 compile` or `release` as usual, all Hamler apps/deps will be compiled before compiling the Erlang project:
 

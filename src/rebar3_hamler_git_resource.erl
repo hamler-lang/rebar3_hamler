@@ -74,13 +74,13 @@ strip_source_tag(AppInfo) ->
     rebar_app_info:source(AppInfo, strip_hamler(rebar_app_info:source(AppInfo))).
 
 tag_hamler({git, Url}) ->
-    {{hamler,git}, Url};
+    {hamler_git, Url};
 tag_hamler({git, Url, Branch}) ->
-    {{hamler,git}, Url, Branch}.
+    {hamler_git, Url, Branch}.
 
-strip_hamler({{hamler,git}, Url}) ->
+strip_hamler({hamler_git, Url}) ->
     {git, Url};
-strip_hamler({{hamler,git}, Url, Branch}) ->
+strip_hamler({hamler_git, Url, Branch}) ->
     {git, Url, Branch}.
 
 str(Str) when is_list(Str) -> Str;
