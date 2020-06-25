@@ -12,7 +12,7 @@
 %% ===================================================================
 -spec init(rebar_state:t()) -> rebar_state:t().
 init(State) ->
-    ?LOG(info, "init hamler compiler", []),
+    ?LOG(debug, "init ~p", [?MODULE]),
     Provider = providers:create([
             {namespace, hamler},
             {name, ?PROVIDER},            % The 'user friendly' name of the task
@@ -54,25 +54,14 @@ validate_hamler_tools() ->
         false ->
             {error, {os_env_not_found, "$PATH"}};
         PathV ->
-            case find_hamler_bin(PathV) of
-                ok ->
+            case rebar3_hamler:find_hamler_bin(PathV) of
+                {ok, _} ->
                     case find_hamler_ebins() of
                         ok -> ok;
                         Error -> Error
                     end;
                 Error -> Error
             end
-    end.
-
-find_hamler_bin(Paths) ->
-    try
-        [case filelib:find_file("hamler", Path) of
-            {ok, _BinFile} -> throw(ok);
-            _ -> not_found
-        end || Path <- string:tokens(Paths, ": ")],
-        {error, hamler_not_found_in_path}
-    catch
-        throw:ok -> ok
     end.
 
 find_hamler_ebins() ->
@@ -111,46 +100,15 @@ preproc_project(Path) ->
 
 compile(Path) ->
     ?LOG(info, "compiling ~s", [Path]),
-    _ = exec_cmd(Path, "mkdir -p ebin"), %% tmp fix ebin cannot found
-    case exec_cmd(Path, "hamler build 2>&1") of
-        {0, Result} ->
-            ?LOG(debug, "~p~n", [Result]), %% show result in single line
-            ?LOG(debug, "~s built successfully", [Path]),
-            create_app(Path);
-        {Code, Result} ->
-            ?LOG(error, "~s~n", [Result]),
-            ?LOG(error, "~s command `hamler build` failed with exit code: ~p", [Path, Code])
-    end.
+    {ok, _} = rebar_utils:sh("mkdir -p ebin", [{cd, Path}]), %% tmp fix ebin cannot found
+    {ok, Result} = rebar_utils:sh("hamler build 2>&1", [{cd, Path}]),
+    ?LOG(debug, "~p~n", [Result]), %% show result in single line
+    ?LOG(debug, "~s built successfully", [Path]),
+    create_app(Path).
 
 hamler_version() ->
-    case exec_cmd(".", "hamler --version") of
-        {0, Version} ->
-            string:trim(Version);
-        {Code, Result} ->
-            ?LOG(error, "get hamler version failed: ~p~n", [{Code, Result}]),
-            "unknown"
-    end.
-
-exec_cmd(Path, Command) ->
-    Port = open_port({spawn, Command}, [{cd, Path}, stream, in, eof, hide, exit_status]),
-    collect_cmd_result(Port, []).
-
-collect_cmd_result(Port, Sofar) ->
-    receive
-        {Port, {data, Bytes}} ->
-            collect_cmd_result(Port, [Sofar|Bytes]);
-        {Port, eof} ->
-            Port ! {self(), close},
-            receive
-              {Port, closed} -> ignore
-            end,
-            {collect_cmd_exit_code(Port), lists:flatten(Sofar)}
-    end.
-
-collect_cmd_exit_code(Port) ->
-    receive
-        {Port, {exit_status, Code}} -> Code
-    end.
+    {ok, Version} = rebar_utils:sh("hamler --version", []),
+    string:trim(Version).
 
 create_app(Path) ->
     ?LOG(debug, "making *.app for ~s", [Path]),

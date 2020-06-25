@@ -1,13 +1,19 @@
 -module(rebar3_hamler).
 
--export([init/1, find_hamler_paths/1, project_path_type/2]).
+-export([ init/1
+        , find_hamler_paths/1
+        , absolute_deps_path/1
+        , find_hamler_bin/1
+        ]).
 
 -include("include/rebar3_hamler.hrl").
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-    {ok, rebar3_hamler_compile:init(
-            rebar_state:add_resource(State, {{hamler,git}, rebar3_hamler_git_resource}))}.
+    Resource = {{hamler,git}, rebar3_hamler_git_resource},
+    {ok, rebar3_hamler_repl:init(
+            rebar3_hamler_compile:init(
+                rebar_state:add_resource(State, Resource)))}.
 
 find_hamler_paths(State) ->
     %% find all dirs that have an src sub-dir and contains .hm files in it
@@ -17,7 +23,27 @@ find_hamler_paths(State) ->
                    lib_path(State)],
     ?LOG(debug, "find hamler path in ~p", [SearchPaths]),
     HmDirs = lists:append([filelib:wildcard(Dir) || Dir <- SearchPaths]),
-    usort_project_paths([extract_project_path(Dir) || Dir <- HmDirs], absolute_deps_path(State)).
+    usort_project_paths([extract_project_path(Dir) || Dir <- HmDirs],
+        absolute_deps_path(State)).
+
+absolute_deps_path(State) ->
+    filename:absname(rebar_dir:deps_dir(State)).
+
+-spec find_hamler_bin(list()) -> {ok, string()} | {error, term()}.
+find_hamler_bin(Paths) ->
+    try
+        [case filelib:find_file("hamler", Path) of
+            {ok, BinFile} -> throw({found, BinFile});
+            _ -> not_found
+         end || Path <- string:tokens(Paths, ": ")],
+        {error, hamler_not_found_in_path}
+    catch
+        throw:{found, BinFile} -> {ok, BinFile}
+    end.
+
+%% ================================================================
+%% Interal functions
+%% ================================================================
 
 src_path(State) ->
     filename:join([rebar_dir:root_dir(State), "src", "**", "*.hm"]).
@@ -40,9 +66,6 @@ extract_project_path(Dir, "src") ->
     filename:dirname(Dir);
 extract_project_path(Dir, _Basename) ->
     extract_project_path(filename:dirname(Dir)).
-
-absolute_deps_path(State) ->
-    filename:absname(rebar_dir:deps_dir(State)).
 
 usort_project_paths(Paths, DepsPath) ->
     [{project_path_type(P, DepsPath), P} || P <- lists:usort(Paths)].

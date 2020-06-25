@@ -53,3 +53,11 @@ Then just `rebar3 compile` or `release` as usual, all Hamler apps/deps will be c
 Or you could run `hamler compile` manually:
 
     $ rebar3 hamler compile
+
+The `rebar shell` is also supported:
+
+    $ rebar3 shell
+
+You could even start the Hamler's REPL by running:
+
+    $ rebar3 hamler repl

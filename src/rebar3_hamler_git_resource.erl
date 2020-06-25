@@ -22,12 +22,14 @@ lock(AppInfo, CustomState) ->
     tag_hamler(rebar_git_resource:lock(strip_source_tag(AppInfo), CustomState)).
 
 download(TmpDir, AppInfo, CustomState, RebarState) ->
+    ?LOG(info, "downloading ~p", [rebar_app_info:source(AppInfo)]),
     Result = rebar_git_resource:download(TmpDir, strip_source_tag(AppInfo), CustomState, RebarState),
     ok = create_app_src(TmpDir, #{name => rebar_app_info:name(AppInfo)}),
     Result.
 
 %% For backward compatibilty
 download(Dir, AppInfo, State) ->
+    ?LOG(info, "downloading ~p", [rebar_app_info:source(AppInfo)]),
     Result = rebar_git_resource:download(Dir, strip_source_tag(AppInfo), State),
     ok = create_app_src(Dir, #{name => rebar_app_info:name(AppInfo)}),
     Result.
