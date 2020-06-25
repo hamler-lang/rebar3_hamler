@@ -33,10 +33,8 @@ do(State) ->
         fun ({build_path, Path}) -> {true, Path};
             ({_, _Path}) -> false
         end, rebar3_hamler:find_hamler_paths(State)),
-    {SrcPaths, EBinPaths} = lists:foldr(fun(Path, {SrcList, EBinList}) ->
-            {[filename:join([Path, "src"])|SrcList],
-             [filename:join([Path, "ebin"])|EBinList]}
-        end, {[], []}, ProjectPaths),
+    SrcPaths = [filename:join([Path, "src"]) || Path <- ProjectPaths],
+    EBinPaths = rebar3_hamler:find_all_ebin_paths(State),
     {ok, HamlerPath} = rebar3_hamler:find_hamler_bin(os:getenv("PATH")),
     Args = repl_cmd_args(SrcPaths, EBinPaths),
     ?LOG(info, "execv_run: ~p", [{HamlerPath, Args}]),

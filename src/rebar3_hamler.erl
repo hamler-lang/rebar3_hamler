@@ -4,6 +4,7 @@
         , find_hamler_paths/1
         , absolute_deps_path/1
         , find_hamler_bin/1
+        , find_all_ebin_paths/1
         ]).
 
 -include("include/rebar3_hamler.hrl").
@@ -40,6 +41,9 @@ find_hamler_bin(Paths) ->
     catch
         throw:{found, BinFile} -> {ok, BinFile}
     end.
+
+find_all_ebin_paths(State) ->
+    filelib:wildcard(filename:join([absolute_deps_path(State), "**", "ebin"])).
 
 %% ================================================================
 %% Interal functions
