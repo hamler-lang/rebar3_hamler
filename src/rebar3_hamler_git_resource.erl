@@ -49,8 +49,27 @@ create_app_src(Path, #{name := Name} = AppSrcDscr) ->
     case filelib:is_file(AppSrcFile) of
         true -> ok;
         false ->
-            ?LOG(debug, "creating *.app.src for ~p", [Path]),
-            file:write_file(AppSrcFile, dummy_app_src(AppSrcDscr))
+            ?LOG(info, "creating *.app.src for ~p", [Path]),
+            case search_hamler_app_src_file(Path) of
+                {ok, HamlerAppSrcFile} ->
+                    {ok, [{application,_,AppParams}]} = file:consult(HamlerAppSrcFile),
+                    ?LOG(debug, "copy hamler appsrc file ~p as ~p", [HamlerAppSrcFile, AppSrcFile]),
+                    file:write_file(AppSrcFile, io_lib:format("~p.~n", [{application, list_to_atom(Appname),AppParams}]));
+                {error, not_found} ->
+                    ?LOG(debug, "cannot found hamler appsrc file, creating a dummy .app.src", []),
+                    file:write_file(AppSrcFile, dummy_app_src(AppSrcDscr));
+                {error, Reason} ->
+                    ?LOG(error, "search hamler app src file failed: ~p", [Reason]),
+                    error(Reason)
+            end
+    end.
+
+search_hamler_app_src_file(ProjectPath) ->
+    case filelib:wildcard(filename:join([ProjectPath, "src", "*.app"])) of
+        [HamlerAppSrcFile] -> {ok, HamlerAppSrcFile};
+        [] -> {error, not_found};
+        AppFiles when is_list(AppFiles) ->
+            {error, {multiple_appsrc_files, AppFiles}}
     end.
 
 dummy_app_src(AppSrcDscr = #{name := Name}) ->
