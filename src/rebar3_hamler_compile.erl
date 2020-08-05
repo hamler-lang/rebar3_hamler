@@ -101,10 +101,16 @@ preproc_project(Path) ->
 compile(Path) ->
     ?LOG(info, "compiling ~s", [Path]),
     {ok, _} = rebar_utils:sh("mkdir -p ebin", [{cd, Path}]), %% tmp fix ebin cannot found
-    {ok, Result} = rebar_utils:sh("hamler build 2>&1", [{cd, Path}]),
-    ?LOG(debug, "~p~n", [Result]), %% show result in single line
-    ?LOG(debug, "~s built successfully", [Path]),
-    create_app(Path).
+    case rebar_utils:sh("hamler build 2>&1", [{cd, Path}, return_on_error]) of
+        {ok, Result} ->
+            ?LOG(debug, "~p~n", [Result]), %% show result in single line
+            ?LOG(debug, "~s built successfully", [Path]),
+            create_app(Path);
+        {error, {Code, Details}} ->
+            ?LOG(error, "`hamler build` failed with exit code: ~p~n", [Code]),
+            ?LOG(error, "~s~n", [Details]),
+            failed
+    end.
 
 hamler_version() ->
     {ok, Version} = rebar_utils:sh("hamler --version", []),
